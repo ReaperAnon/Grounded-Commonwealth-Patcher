@@ -1,7 +1,7 @@
 {
-  "Nickname": "GroundedCommonwealthPatcher",
+  "Nickname": "Grounded Commonwealth Patcher",
   "Visibility": "Visible",
-  "OneLineDescription": "",
+  "OneLineDescription": "Compatibility patcher for Grounded Commonwealth.",
   "LongDescription": "",
   "PreferredAutoVersioning": "Default",
   "RequiredMods": [],
