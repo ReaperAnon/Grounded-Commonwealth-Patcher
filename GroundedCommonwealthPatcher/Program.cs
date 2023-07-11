@@ -87,16 +87,10 @@ namespace GroundedCommonwealthPatcher
 
                 if (newNpc.Items is not null && (moddedFields.Items?.Overall ?? false))
                 {
-                    List<ContainerEntry> newItems = newNpc.Items.EmptyIfNull().Where(entry => !npcOverrides[npcOverrides.Count - 1].Record.Items.EmptyIfNull().Contains(entry)).ToList();
-
+                    List<ContainerEntry> newItems = moddedNpc.Items.EmptyIfNull().Where(entry => !npcOverrides[npcOverrides.Count - 1].Record.Items.EmptyIfNull().Contains(entry)).ToList();
                     if(newItems.Any())
                     {
-                        Console.WriteLine("\t- New Items From Other Mods:");
-                        foreach (var item in newItems)
-                            Console.WriteLine($"\t\t{item.Item.Item}");
-
-                        newNpc.Items.RemoveAll(x => true);
-                        newNpc.Items.AddRange(moddedNpc.Items.EmptyIfNull());
+                        Console.WriteLine("\t- New Items Added");       // REMOVE ITEMS FROM NEW INVENTORY THAT GC REMOVED
                         newNpc.Items.AddRange(newItems);
                         wasChanged = true;
                     }
@@ -104,14 +98,17 @@ namespace GroundedCommonwealthPatcher
 
                 if(moddedFields.Factions?.Overall ?? false)
                 {
-                    List<RankPlacement> newFactions = moddedNpc.Factions.Where(faction => !npcOverrides[npcOverrides.Count - 1].Record.Factions.Contains(faction)).ToList();
-
-                    if (newFactions.Any())
+                    if(!newNpc.Factions.Equals(moddedNpc.Factions))
                     {
-                        newNpc.Factions.AddRange(newFactions);
+                        List<RankPlacement> newFactions = moddedNpc.Factions.Where(faction => !npcOverrides[npcOverrides.Count - 1].Record.Factions.Contains(faction)).ToList();
 
-                        Console.WriteLine("\t- Factions Changed");
-                        wasChanged = true;
+                        if (newFactions.Any())
+                        {
+                            newNpc.Factions.AddRange(newFactions);
+
+                            Console.WriteLine("\t- Factions Changed");
+                            wasChanged = true;
+                        }
                     }
                 }
 
@@ -136,13 +133,42 @@ namespace GroundedCommonwealthPatcher
 
                 if (moddedFields.TemplateActors?.Overall ?? false)
                 {
-                    if(!newNpc.TemplateActors?.Equals(moddedNpc.TemplateActors) ?? false)
+                    if (moddedNpc.TemplateActors is not null)
                     {
-                        newNpc.TemplateActors = moddedNpc.TemplateActors;
+                        if (newNpc.TemplateActors is null)
+                            newNpc.TemplateActors = new();
+
+                        newNpc.TemplateActors.TraitTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Traits) > 0 ? moddedNpc.TemplateActors.TraitTemplate : newNpc.TemplateActors.TraitTemplate;
+                        newNpc.TemplateActors.StatsTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Stats) > 0 ? moddedNpc.TemplateActors.StatsTemplate : newNpc.TemplateActors.StatsTemplate;
+                        newNpc.TemplateActors.FactionsTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Factions) > 0 ? moddedNpc.TemplateActors.FactionsTemplate : newNpc.TemplateActors.FactionsTemplate;
+                        newNpc.TemplateActors.SpellListTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.SpellList) > 0 ? moddedNpc.TemplateActors.SpellListTemplate : newNpc.TemplateActors.SpellListTemplate;
+                        newNpc.TemplateActors.AiDataTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.AiData) > 0 ? moddedNpc.TemplateActors.AiDataTemplate : newNpc.TemplateActors.AiDataTemplate;
+                        newNpc.TemplateActors.AiPackagesTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.AiPackages) > 0 ? moddedNpc.TemplateActors.AiPackagesTemplate : newNpc.TemplateActors.AiPackagesTemplate;
+                        newNpc.TemplateActors.ModelOrAnimationTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.ModelOrAnimation) > 0 ? moddedNpc.TemplateActors.ModelOrAnimationTemplate : newNpc.TemplateActors.ModelOrAnimationTemplate;
+                        newNpc.TemplateActors.BaseDataTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.BaseData) > 0 ? moddedNpc.TemplateActors.BaseDataTemplate : newNpc.TemplateActors.BaseDataTemplate;
+                        newNpc.TemplateActors.InventoryTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Inventory) > 0 ? moddedNpc.TemplateActors.InventoryTemplate : newNpc.TemplateActors.InventoryTemplate;
+                        newNpc.TemplateActors.ScriptTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Script) > 0 ? moddedNpc.TemplateActors.ScriptTemplate : newNpc.TemplateActors.ScriptTemplate;
+                        newNpc.TemplateActors.DefPackListTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.DefPackList) > 0 ? moddedNpc.TemplateActors.DefPackListTemplate : newNpc.TemplateActors.DefPackListTemplate;
+                        newNpc.TemplateActors.AttackDataTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.AttackData) > 0 ? moddedNpc.TemplateActors.AttackDataTemplate : newNpc.TemplateActors.AttackDataTemplate;
+                        newNpc.TemplateActors.KeywordsTemplate = (moddedNpc.UseTemplateActors & Npc.TemplateActorType.Keywords) > 0 ? moddedNpc.TemplateActors.KeywordsTemplate : newNpc.TemplateActors.KeywordsTemplate;
 
                         Console.WriteLine("\t- Template Actors Changed");
                         wasChanged = true;
                     }
+                    else newNpc.TemplateActors = null;
+                }
+
+                if (moddedFields.ObjectTemplates?.Overall ?? false)
+                {
+                    newNpc.ObjectTemplates = moddedNpc.ObjectTemplates;
+                    Console.WriteLine("\t- Object Templates Changed");
+                    wasChanged = true;
+                }
+
+                if (moddedFields.CrimeFaction)
+                {
+                    newNpc.CrimeFaction = moddedNpc.CrimeFaction;
+                    Console.WriteLine("\t- Crime Faction Changed");
                 }
 
                 if (Config.Value.TransferLooks)
@@ -167,7 +193,8 @@ namespace GroundedCommonwealthPatcher
                         (moddedFields.Weight?.Overall ?? false) ||
                         moddedFields.HeadTexture ||
                         moddedFields.TextureLighting ||
-                        moddedFields.HairColor)
+                        moddedFields.HairColor ||
+                        moddedFields.FacialMorphIntensity)
                     )
                     {
                         newNpc.HeadParts.RemoveAll(x => true);
@@ -183,6 +210,8 @@ namespace GroundedCommonwealthPatcher
                         newNpc.HeadTexture = moddedNpc.HeadTexture;
                         newNpc.TextureLighting = moddedNpc.TextureLighting;
                         newNpc.HairColor = moddedNpc.HairColor;
+                        newNpc.FacialMorphIntensity = moddedNpc.FacialMorphIntensity;
+
                         Console.WriteLine("\t- Looks Changed");
                         wasChanged = true;
                     }
