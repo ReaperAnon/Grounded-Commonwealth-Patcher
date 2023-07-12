@@ -88,11 +88,20 @@ namespace GroundedCommonwealthPatcher
                 if (newNpc.Items is not null && (moddedFields.Items?.Overall ?? false))
                 {
                     List<ContainerEntry> newItems = moddedNpc.Items.EmptyIfNull().Where(entry => !npcOverrides[npcOverrides.Count - 1].Record.Items.EmptyIfNull().Contains(entry)).ToList();
+                    List<IContainerEntryGetter> removedItems = npcOverrides[npcOverrides.Count - 1].Record.Items.EmptyIfNull().Where(entry => !moddedNpc.Items.EmptyIfNull().Contains(entry)).ToList();
                     if(newItems.Any())
                     {
-                        Console.WriteLine("\t- New Items Added");       // REMOVE ITEMS FROM NEW INVENTORY THAT GC REMOVED
+                        Console.WriteLine("\t- New Items Added");
                         newNpc.Items.AddRange(newItems);
                         wasChanged = true;
+                    }
+                    
+                    if(removedItems.Any())
+                    {
+                        wasChanged = true;
+                        Console.WriteLine("\t- Old Items Removed");
+                        foreach (var item in removedItems)
+                            newNpc.Items.RemoveAll(entry => entry.Item.Item.Equals(item.Item.Item));
                     }
                 }
 
