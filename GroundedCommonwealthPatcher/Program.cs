@@ -42,6 +42,63 @@ namespace GroundedCommonwealthPatcher
             return ((baseNpc.Flags & Npc.Flag.Female) > 0 && (moddedNpc.Flags & Npc.Flag.Female) == 0) || ((baseNpc.Flags & Npc.Flag.Female) == 0 && (moddedNpc.Flags & Npc.Flag.Female) > 0);
         }
 
+        public static void MergeStageText(IPatcherState<IFallout4Mod, IFallout4ModGetter> state, Quest moddedQuest, IModContext<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter> vanillaQuest, IModContext<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter> winningQuest)
+        {
+            if (moddedQuest.Stages.Count != winningQuest.Record.Stages.Count)
+                return;
+
+            for (int i = 0; i < moddedQuest.Stages.Count; i++)
+            {
+                if (moddedQuest.Stages[i].LogEntries.Count != winningQuest.Record.Stages[i].LogEntries.Count)
+                    continue;
+
+                for (int j = 0; j < moddedQuest.Stages[i].LogEntries.Count; j++)
+                {
+                    string vanillaNoteText = vanillaQuest.Record.Stages[i].LogEntries[j].Note ?? "";
+                    string vanillaLogText = vanillaQuest.Record.Stages[i].LogEntries[j].Entry?.String ?? "";
+                    string moddedNoteText = moddedQuest.Stages[i].LogEntries[j].Note ?? "";
+                    string moddedLogText = moddedQuest.Stages[i].LogEntries[j].Entry?.String ?? "";
+                    string winningNoteText = winningQuest.Record.Stages[i].LogEntries[j].Note ?? "";
+                    string winningLogText = winningQuest.Record.Stages[i].LogEntries[j].Entry?.String ?? "";
+
+                    if (!vanillaNoteText.Equals(moddedNoteText) && !moddedNoteText.Equals(winningNoteText))
+                    {
+                        var newQuest = winningQuest.GetOrAddAsOverride(state.PatchMod);
+                        newQuest.Stages[i].LogEntries[j].Note = moddedQuest.Stages[i].LogEntries[j].Note;
+                        Console.WriteLine($"{vanillaNoteText} - {moddedNoteText}\n");
+                    }
+
+                    if (!vanillaLogText.Equals(moddedLogText) && !moddedLogText.Equals(winningLogText))
+                    {
+                        var newQuest = winningQuest.GetOrAddAsOverride(state.PatchMod);
+                        newQuest.Stages[i].LogEntries[j].Entry = moddedQuest.Stages[i].LogEntries[j].Entry;
+                        Console.WriteLine($"{vanillaLogText} - {moddedLogText}\n");
+                    }
+                }
+            }
+        }
+
+        public static void MergeObjectiveText(IPatcherState<IFallout4Mod, IFallout4ModGetter> state, Quest moddedQuest, IModContext<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter> vanillaQuest, IModContext<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter> winningQuest)
+        {
+            if (moddedQuest.Objectives.Count != winningQuest.Record.Objectives.Count)
+                return;
+
+            for (int i = 0; i < moddedQuest.Objectives.Count; i++)
+            {
+                string vanillaText = vanillaQuest.Record.Objectives[i].DisplayText?.String ?? "";
+                string moddedText = moddedQuest.Objectives[i].DisplayText?.String ?? "";
+                string winningText = winningQuest.Record.Objectives[i].DisplayText?.String ?? "";
+
+                // If objective text was unchanged.
+                if (vanillaText.Equals(moddedText))
+                    continue;
+
+                var newQuest = winningQuest.GetOrAddAsOverride(state.PatchMod);
+                if (!moddedText.Equals(winningText))
+                    newQuest.Objectives[i].DisplayText = moddedQuest.Objectives[i].DisplayText;
+            }
+        }
+
         public static void RunPatch(IPatcherState<IFallout4Mod, IFallout4ModGetter> state)
         {
             Fallout4Mod GroundedCommonwealth = Fallout4Mod.CreateFromBinary(Path.Combine(state.DataFolderPath, "Grounded Commonwealth.esp"));
@@ -192,7 +249,7 @@ namespace GroundedCommonwealthPatcher
                         // Couldn't find skin tint entry, means game uses the first in the race entry.
                     }
 
-                    if ((WasSexChanged(npcOverrides[npcOverrides.Count - 1].Record, moddedNpc) || // sex changed or
+                    if ((WasSexChanged(npcOverrides[^1].Record, moddedNpc) || // sex changed or
                         shouldTransfer) && // different race or transfer all and
                         ((moddedFields.HeadParts?.Overall ?? false) || // looks were changed
                         (moddedFields.Morphs?.Overall ?? false) ||
@@ -280,28 +337,46 @@ namespace GroundedCommonwealthPatcher
                     foreach (var moddedCell in moddedCellSubBlock.Cells)
                     {
                         List<IModContext<IFallout4Mod, IFallout4ModGetter, ICell, ICellGetter>> cellOverrides = moddedCell.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, ICell, ICellGetter>(state.LinkCache).ToList();
-
-                        string newCellName = cellOverrides[0].Record.Name?.String ?? "";
-                        string oldCellName = cellOverrides[cellOverrides.Count - 1].Record.Name?.String ?? "";
-                        string moddedCellName = moddedCell.Name?.String ?? "";
-                        if ((newCellName != moddedCellName && oldCellName != moddedCellName) || (!cellOverrides[0].Record.Music.Equals(moddedCell.Music) && !cellOverrides[cellOverrides.Count - 1].Record.Music.Equals(moddedCell.Music)))
+                        try
                         {
-                            var newCell = cellOverrides[0].GetOrAddAsOverride(state.PatchMod);
-                            Console.WriteLine($"\nProcessing {newCell}");
-                            if (oldCellName != moddedCellName)
+                            string newCellName = cellOverrides[0].Record.Name?.String ?? "";
+                            string oldCellName = cellOverrides[cellOverrides.Count - 1].Record.Name?.String ?? "";
+                            string moddedCellName = moddedCell.Name?.String ?? "";
+                            if ((newCellName != moddedCellName && oldCellName != moddedCellName) || (!cellOverrides[0].Record.Music.Equals(moddedCell.Music) && !cellOverrides[cellOverrides.Count - 1].Record.Music.Equals(moddedCell.Music)))
                             {
-                                newCell.Name = moddedCell.Name;
-                                Console.WriteLine("\t- Name Changed");
+                                var newCell = cellOverrides[0].GetOrAddAsOverride(state.PatchMod);
+                                Console.WriteLine($"\nProcessing {newCell}");
+                                if (oldCellName != moddedCellName)
+                                {
+                                    newCell.Name = moddedCell.Name;
+                                    Console.WriteLine("\t- Name Changed");
+                                }
+
+                                if (!cellOverrides[cellOverrides.Count - 1].Record.Music.Equals(moddedCell.Music))
+                                {
+                                    newCell.Music = moddedCell.Music;
+                                    Console.WriteLine("\t- Music Changed");
+                                }
                             }
 
-                            if(!cellOverrides[cellOverrides.Count - 1].Record.Music.Equals(moddedCell.Music))
-                            {
-                                newCell.Music = moddedCell.Music;
-                                Console.WriteLine("\t- Music Changed");
-                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            Console.WriteLine(cellOverrides[0].Record + "\n" + ex.ToString());
                         }
                     }
                 }
+            }
+
+            foreach (var moddedQuest in GroundedCommonwealth.Quests)
+            {
+                var questOverrides = moddedQuest.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter>(state.LinkCache).ToList();
+
+                if (questOverrides.Count <= 0)
+                    continue;
+
+                MergeObjectiveText(state, moddedQuest, questOverrides[0], questOverrides[^1]);
+                MergeStageText(state, moddedQuest, questOverrides[0], questOverrides[^1]);
             }
 
             Console.WriteLine("\nProcessing finished.");
