@@ -1,10 +1,7 @@
-using System;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Fallout4;
 using Mutagen.Bethesda.Plugins;
-using Mutagen.Bethesda.Plugins.Order;
-using Mutagen.Bethesda.Plugins.Binary.Streams;
 using Mutagen.Bethesda.Plugins.Cache;
 
 using GroundedCommonwealthPatcher.Settings;
@@ -16,6 +13,9 @@ namespace GroundedCommonwealthPatcher
     public class Program
     {
         public static Lazy<GCConfig> Config = null!;
+
+        public static List<string> RemoveAll { get; } = new() { "raider", "gunner", "bostrait", "rragent", "minute", "trigger", "trapper" };
+        public static List<string> RemoveSome { get; } = new() { "scav", "childrenof", "workshop", "instit" };
 
         public static async Task<int> Main(string[] args)
         {
@@ -107,7 +107,7 @@ namespace GroundedCommonwealthPatcher
             if (Config.Value.TransferLooks)
                 minBrightnessVal = System.Drawing.Color.FromArgb(1, 209, 201, 192).GetBrightness();
 
-            foreach(Npc moddedNpc in GroundedCommonwealth.Npcs)
+            foreach (var moddedNpc in GroundedCommonwealth.Npcs)
             {
                 List<IModContext<IFallout4Mod, IFallout4ModGetter, INpc, INpcGetter>> npcOverrides = moddedNpc.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, INpc, INpcGetter>(state.LinkCache).ToList();
                 if (npcOverrides.Count <= 0)
@@ -330,7 +330,7 @@ namespace GroundedCommonwealthPatcher
                     state.PatchMod.Npcs.Add(newNpc);
             }
 
-            foreach(var moddedCellBlock in GroundedCommonwealth.Cells)
+            foreach (var moddedCellBlock in GroundedCommonwealth.Cells)
             {
                 foreach (var moddedCellSubBlock in moddedCellBlock.SubBlocks)
                 {
@@ -377,6 +377,111 @@ namespace GroundedCommonwealthPatcher
 
                 MergeObjectiveText(state, moddedQuest, questOverrides[0], questOverrides[^1]);
                 MergeStageText(state, moddedQuest, questOverrides[0], questOverrides[^1]);
+            }
+
+            foreach (var moddedIngestible in GroundedCommonwealth.Ingestibles)
+            {
+                List<IModContext<IFallout4Mod, IFallout4ModGetter, IIngestible, IIngestibleGetter>> ingestibleOverrides = moddedIngestible.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, IIngestible, IIngestibleGetter>(state.LinkCache).ToList();
+                if (ingestibleOverrides.Count <= 0)
+                    throw new Exception($"Couldn't resolve {moddedIngestible}");
+
+                if (ingestibleOverrides[0].Record.Name.EmptyIfNull().Equals(moddedIngestible.Name))
+                    continue;
+
+                var newIngestible = state.PatchMod.Ingestibles.GetOrAddAsOverride(ingestibleOverrides[0].Record);
+                newIngestible.Name = moddedIngestible.Name;
+            }
+
+            foreach (var lvlNpcGetter in state.LoadOrder.PriorityOrder.LeveledNpc().WinningOverrides())
+            {
+                if (lvlNpcGetter.EditorID is null || lvlNpcGetter.Entries is null)
+                    continue;
+
+                bool removeAll = RemoveAll.Any(entry => lvlNpcGetter.EditorID.Contains(entry, StringComparison.OrdinalIgnoreCase));
+                bool removeSome = RemoveSome.Any(entry => lvlNpcGetter.EditorID.Contains(entry, StringComparison.OrdinalIgnoreCase));
+                if (!removeAll && !removeSome)
+                    continue;
+
+                bool wasChanged = false;
+                var lvlNpcSetter = lvlNpcGetter.DeepCopy();
+                for (int i = lvlNpcSetter.Entries!.Count - 1; i >= 0; --i)
+                {
+                    if (lvlNpcSetter.Entries[i].Data is null)
+                        continue;
+
+                    if (!lvlNpcSetter.Entries[i].Data!.Reference.TryResolve<INpcGetter>(state.LinkCache, out var npcEntry))
+                        continue;
+
+                    bool shouldRemove = false;
+                    minBrightnessVal = System.Drawing.Color.FromArgb(1, 107, 107, 126).GetBrightness();
+                    bool inheritsTraits = npcEntry.UseTemplateActors.HasFlag(Npc.TemplateActorType.Traits);
+                    if (inheritsTraits && npcEntry.TemplateActors is not null)
+                    {
+                        if (!npcEntry.TemplateActors.TraitTemplate.TryResolve<INpcGetter>(state.LinkCache, out var templateEntry))
+                            continue;
+
+                        shouldRemove = templateEntry.Flags.HasFlag(Npc.Flag.Female) && removeAll;
+                        try
+                        {
+                            shouldRemove |= (templateEntry.FaceTintingLayers.First(tint => tint.Index == 1156)?.Color.GetBrightness() ?? 1) <= minBrightnessVal;
+                        }
+                        catch (InvalidOperationException) { }
+                    }
+                    else
+                    {
+                        shouldRemove = npcEntry.Flags.HasFlag(Npc.Flag.Female) && removeAll;
+                        try
+                        {
+                            shouldRemove |= (npcEntry.FaceTintingLayers.First(tint => tint.Index == 1156)?.Color.GetBrightness() ?? 1) <= minBrightnessVal;
+                        }
+                        catch (InvalidOperationException) { }
+                    }
+
+                    if (!shouldRemove)
+                        continue;
+
+                    lvlNpcSetter.Entries.RemoveAt(i);
+                    wasChanged = true;
+                }
+
+                if (lvlNpcSetter.Entries.Count <= 0)
+                {
+                    Console.WriteLine($"Leveled list {lvlNpcGetter} was changed but all entries were removed. Restoring to original.");
+                    continue;
+                }
+
+                if (wasChanged)
+                {
+                    Console.WriteLine($"Processing leveled list {lvlNpcGetter}");
+                    state.PatchMod.LeveledNpcs.Set(lvlNpcSetter);
+                }
+            }
+
+            foreach (var moddedLvlNpc in GroundedCommonwealth.LeveledNpcs)
+            {
+                List<IModContext<IFallout4Mod, IFallout4ModGetter, ILeveledNpc, ILeveledNpcGetter>> lvlOverrides = moddedLvlNpc.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, ILeveledNpc, ILeveledNpcGetter>(state.LinkCache).ToList();
+                if (lvlOverrides.Count <= 0)
+                    throw new Exception($"Couldn't resolve {moddedLvlNpc}");
+
+                // Skip unique lists.
+                if (lvlOverrides.Count == 1)
+                    continue;
+                
+                var newEntries = moddedLvlNpc.Entries.EmptyIfNull().Where(entry => !lvlOverrides[^1].Record.Entries.EmptyIfNull().Contains(entry)).ToList();
+                var removedEntries = lvlOverrides[^1].Record.Entries.EmptyIfNull().Where(entry => !moddedLvlNpc.Entries.EmptyIfNull().Contains(entry)).ToList();
+                if (newEntries.Count > 0 || removedEntries.Count > 0)
+                {
+                    var newLvlNpc = state.PatchMod.LeveledNpcs.GetOrAddAsOverride(moddedLvlNpc);
+                    foreach (var entry in removedEntries)
+                        newLvlNpc.Entries.RemoveWhere(x => x.Data?.Reference.Equals(entry.Data?.Reference) ?? false);
+
+                    foreach (var entry in newEntries)
+                    {
+                        if (newLvlNpc.Entries is null)
+                            newLvlNpc.Entries = new();
+                        newLvlNpc.Entries.Add(entry);
+                    }
+                }
             }
 
             Console.WriteLine("\nProcessing finished.");

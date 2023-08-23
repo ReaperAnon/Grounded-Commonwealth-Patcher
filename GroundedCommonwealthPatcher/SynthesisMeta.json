@@ -2,7 +2,7 @@
   "Nickname": "Grounded Commonwealth Patcher",
   "Visibility": "Visible",
   "OneLineDescription": "Compatibility patcher for Grounded Commonwealth.",
-  "LongDescription": "",
+  "LongDescription": "The mod can be found here: https://www.moddb.com/mods/grounded-commonwealth\r\n\r\nThe patcher merges NPC entries to preserve the changes that Grounded Commonwealth made, along with merging cells, quests and consumables and modifying leveled lists to remove female NPCs from raider groups and from the gunners and other NPCs that don't belong which might be added by other mods.",
   "PreferredAutoVersioning": "Default",
   "RequiredMods": [],
   "TargetedReleases": [
