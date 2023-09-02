@@ -52,7 +52,7 @@ namespace GroundedCommonwealthPatcher
                 if (moddedQuest.Stages[i].LogEntries.Count != winningQuest.Record.Stages[i].LogEntries.Count)
                     continue;
 
-                bool checkVanilla = vanillaQuest.Record.Stages[i].LogEntries.Count == winningQuest.Record.Stages[i].LogEntries.Count;
+                bool checkVanilla = vanillaQuest.Record.Stages.Count == winningQuest.Record.Stages.Count && vanillaQuest.Record.Stages[i].LogEntries.Count == winningQuest.Record.Stages[i].LogEntries.Count;
                 for (int j = 0; j < moddedQuest.Stages[i].LogEntries.Count; j++)
                 {
                     string vanillaNoteText = checkVanilla ? vanillaQuest.Record.Stages[i].LogEntries[j].Note ?? "" : "";
