@@ -372,7 +372,7 @@ namespace GroundedCommonwealthPatcher
             {
                 var questOverrides = moddedQuest.ToLink().ResolveAllContexts<IFallout4Mod, IFallout4ModGetter, IQuest, IQuestGetter>(state.LinkCache).ToList();
 
-                if (questOverrides.Count <= 0)
+                if (questOverrides.Count <= 1)
                     continue;
 
                 MergeObjectiveText(state, moddedQuest, questOverrides[0], questOverrides[^1]);
