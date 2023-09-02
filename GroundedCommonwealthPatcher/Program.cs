@@ -83,9 +83,10 @@ namespace GroundedCommonwealthPatcher
             if (moddedQuest.Objectives.Count != winningQuest.Record.Objectives.Count)
                 return;
 
+            bool checkVanilla = vanillaQuest.Record.Objectives.Count == winningQuest.Record.Objectives.Count;
             for (int i = 0; i < moddedQuest.Objectives.Count; i++)
             {
-                string vanillaText = vanillaQuest.Record.Objectives[i].DisplayText?.String ?? "";
+                string vanillaText = checkVanilla ? vanillaQuest.Record.Objectives[i].DisplayText?.String ?? "" : "";
                 string moddedText = moddedQuest.Objectives[i].DisplayText?.String ?? "";
                 string winningText = winningQuest.Record.Objectives[i].DisplayText?.String ?? "";
 
